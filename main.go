@@ -1,6 +1,7 @@
 package main
 
 import (
+	"encoding/json"
 	"fmt"
 	"log"
 	"net/http"
@@ -17,6 +18,7 @@ func main() {
 	sm := http.NewServeMux()
 
 	sm.HandleFunc("GET /api/healthz", healthHandler)
+	sm.HandleFunc("POST /api/validate_chirp", validateChirpHandler)
 	sm.HandleFunc("GET /admin/metrics", apiCfg.metricsHandler)
 	sm.HandleFunc("POST /admin/reset", apiCfg.resetHandler)
 	sm.Handle("/app/", apiCfg.middlewareMetricsInc(http.StripPrefix("/app/", http.FileServer(http.Dir('.')))))
@@ -57,4 +59,28 @@ func (cfg *apiConfig) middlewareMetricsInc(next http.Handler) http.Handler {
 		cfg.fileserverHits.Add(1)
 		next.ServeHTTP(w, r)
 	})
+}
+
+type chirpValid struct {
+	Body string `json:"body"`
+}
+
+func validateChirpHandler(rw http.ResponseWriter, req *http.Request) {
+	var data chirpValid
+	decoder := json.NewDecoder(req.Body)
+	err := decoder.Decode(&data)
+
+	if err != nil {
+		rw.WriteHeader(500)
+		rw.Write([]byte(`{"error":"Something went wrong"}`))
+		return
+	}
+
+	if len(data.Body) > 140 {
+		rw.WriteHeader(400)
+		rw.Write([]byte(`{"error":"Chirp is too long"}`))
+		return
+	}
+	rw.WriteHeader(200)
+	rw.Write([]byte(`{"valid":true}`))
 }
