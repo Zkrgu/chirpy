@@ -17,8 +17,8 @@ func main() {
 	sm := http.NewServeMux()
 
 	sm.HandleFunc("GET /api/healthz", healthHandler)
-	sm.HandleFunc("GET /api/metrics", apiCfg.metricsHandler)
-	sm.HandleFunc("POST /api/reset", apiCfg.resetHandler)
+	sm.HandleFunc("GET /admin/metrics", apiCfg.metricsHandler)
+	sm.HandleFunc("POST /admin/reset", apiCfg.resetHandler)
 	sm.Handle("/app/", apiCfg.middlewareMetricsInc(http.StripPrefix("/app/", http.FileServer(http.Dir('.')))))
 
 	server := http.Server{
@@ -34,10 +34,17 @@ func healthHandler(rw http.ResponseWriter, req *http.Request) {
 	rw.Write([]byte("OK"))
 }
 
+const metricsTemplate = `<html>
+  <body>
+    <h1>Welcome, Chirpy Admin</h1>
+    <p>Chirpy has been visited %d times!</p>
+  </body>
+</html>`
+
 func (cfg *apiConfig) metricsHandler(rw http.ResponseWriter, req *http.Request) {
-	rw.Header().Add("Content-Type", "text/plain; charset=utf-8")
+	rw.Header().Add("Content-Type", "text/html")
 	rw.WriteHeader(200)
-	rw.Write([]byte(fmt.Sprintf("Hits: %d", cfg.fileserverHits.Load())))
+	rw.Write([]byte(fmt.Sprintf(metricsTemplate, cfg.fileserverHits.Load())))
 }
 
 func (cfg *apiConfig) resetHandler(rw http.ResponseWriter, req *http.Request) {
